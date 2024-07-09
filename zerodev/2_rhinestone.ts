@@ -1,7 +1,7 @@
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
-import { http, createPublicClient, type Address } from 'viem'
+import { http, createPublicClient, type Address, zeroAddress, encodeAbiParameters, encodePacked } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { ENTRYPOINT_ADDRESS_V07, bundlerActions } from 'permissionless'
@@ -84,7 +84,7 @@ const main = async () => {
 	const startDate = 1710759572 // UNIX timestamp
 	const hook = '0x...'
 
-	const scheduledTransfersExecutor = getScheduledTransfersExecutor({
+	const module = getScheduledTransfersExecutor({
 		executeInterval,
 		numberOfExecutions,
 		startDate,
@@ -92,10 +92,15 @@ const main = async () => {
 		hook,
 	})
 
+	const context = encodePacked(
+		['address', 'bytes'],
+		[zeroAddress, encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes' }], [module.initData || '0x', '0x'])],
+	)
+
 	const opHash = await kernelClient.installModule({
-		type: scheduledTransfersExecutor.type,
-		address: scheduledTransfersExecutor.module,
-		context: scheduledTransfersExecutor.data,
+		type: module.type,
+		address: module.module,
+		context: context,
 	})
 
 	const bundlerClient = kernelClient.extend(bundlerActions(entryPoint))
