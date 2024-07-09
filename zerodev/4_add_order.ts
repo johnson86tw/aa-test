@@ -1,13 +1,12 @@
-import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
-import { http, createPublicClient, type Address, zeroAddress, encodeAbiParameters, encodePacked } from 'viem'
+import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
+import { http, createPublicClient, zeroAddress, type Address } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { ENTRYPOINT_ADDRESS_V07, bundlerActions } from 'permissionless'
 import 'dotenv/config'
-import { getScheduledTransferData, getScheduledTransfersExecutor } from '@rhinestone/module-sdk'
-import { erc7579Actions } from 'permissionless/actions/erc7579'
+import { getCreateScheduledTransferAction, type ERC20Token } from '@rhinestone/module-sdk'
 
 // account: https://sepolia.etherscan.io/address/0x469874C9e35c19fbF2eaC9fbA3a1cc397023FF68
 
@@ -35,6 +34,7 @@ const kernelVersion = KERNEL_V3_1
 
 const main = async () => {
 	const signer = privateKeyToAccount(`0x${PRIVATE_KEY}`)
+
 	const publicClient = createPublicClient({
 		transport: http(BUNDLER_RPC),
 	})
@@ -54,8 +54,7 @@ const main = async () => {
 		kernelVersion,
 	})
 
-	console.log('account', account.address)
-
+	// Construct a Kernel account client
 	const kernelClient = createKernelAccountClient({
 		account,
 		chain,
@@ -74,53 +73,43 @@ const main = async () => {
 				})
 			},
 		},
-	}).extend(erc7579Actions({ entryPoint }))
+	})
 
-	const hook = '0x...'
+	const accountAddress = kernelClient.account.address
+	console.log('My account:', accountAddress)
 
-	const scheduledTransfer = {
-		startDate,
-		repeatEvery: executeInterval,
-		numberOfRepeats: numberOfExecutions,
-		token: {
-			token_address: MTK_ADDRESS as Address, // USDC
-			decimals: 18,
+	// ================================== Send a UserOp ================================
+
+	const scheduledTransferAction = getCreateScheduledTransferAction({
+		scheduledTransfer: {
+			token: {
+				token_address: MTK_ADDRESS,
+				decimals: 18,
+			},
+			amount: 1,
+			recipient,
+			startDate: new Date().getTime(),
+			repeatEvery: 10,
+			numberOfRepeats: 2,
 		},
-		amount: 1,
-		recipient: recipient as Address,
-	}
-
-	const executionData = getScheduledTransferData({
-		scheduledTransfer,
 	})
 
-	const module = getScheduledTransfersExecutor({
-		executeInterval,
-		numberOfExecutions,
-		startDate,
-		executionData,
-		hook,
+	const userOpHash = await kernelClient.sendUserOperation({
+		userOperation: {
+			callData: scheduledTransferAction.callData,
+		},
 	})
 
-	const opHash = await kernelClient.installModule({
-		type: module.type,
-		address: module.module,
-		context: encodePacked(
-			['address', 'bytes'],
-			[zeroAddress, encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes' }], [module.initData || '0x', '0x'])],
-		),
-	})
-
-	console.log('UserOp hash:', opHash)
+	console.log('UserOp hash:', userOpHash)
 	console.log('Waiting for UserOp to complete...')
 
 	const bundlerClient = kernelClient.extend(bundlerActions(entryPoint))
 	await bundlerClient.waitForUserOperationReceipt({
-		hash: opHash,
-		timeout: 100000,
+		hash: userOpHash,
+		timeout: 0,
 	})
 
-	console.log('View completed UserOp here: https://jiffyscan.xyz/userOpHash/' + opHash)
+	console.log('View completed UserOp here: https://jiffyscan.xyz/userOpHash/' + userOpHash)
 }
 
 main()
