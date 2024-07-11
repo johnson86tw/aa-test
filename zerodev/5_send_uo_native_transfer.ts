@@ -11,7 +11,7 @@ import { getCreateScheduledTransferAction, type ERC20Token } from '@rhinestone/m
 // account: https://sepolia.etherscan.io/address/0x469874C9e35c19fbF2eaC9fbA3a1cc397023FF68
 
 const MTK_ADDRESS = '0x2bb2F59B2F316e1Fd68616b83920A1fe15E32a81'
-const recipient = '0x9e8f8C3Ad87dBE7ACFFC5f5800e7433c8dF409F2' // dev 2
+const recipient = '0xd78B5013757Ea4A7841811eF770711e6248dC282' // dev
 const startDate = Math.floor(Date.now() / 1000) // UNIX timestamp
 const executeInterval = 60 // 1 minute
 const numberOfExecutions = 2
@@ -80,21 +80,26 @@ const main = async () => {
 
 	// ================================== Send a UserOp ================================
 
-	const scheduledTransferAction = getCreateScheduledTransferAction({
-		scheduledTransfer: {
-			token: {
-				token_address: MTK_ADDRESS,
-				decimals: 18,
-			},
-			amount: 1,
-			recipient,
-			startDate: new Date().getTime(),
-			repeatEvery: 10,
-			numberOfRepeats: 2,
+	const userOpHash = await kernelClient.sendUserOperation({
+		userOperation: {
+			callData: await kernelClient.account.encodeCallData({
+				to: '0xd78B5013757Ea4A7841811eF770711e6248dC282',
+				value: BigInt(0.01 * 1e18),
+				data: '0x',
+			}),
 		},
 	})
 
-	console.log('calldata', scheduledTransferAction.callData)
+	console.log('UserOp hash:', userOpHash)
+	console.log('Waiting for UserOp to complete...')
+
+	const bundlerClient = kernelClient.extend(bundlerActions(entryPoint))
+	await bundlerClient.waitForUserOperationReceipt({
+		hash: userOpHash,
+		timeout: 0,
+	})
+
+	console.log('View completed UserOp here: https://jiffyscan.xyz/userOpHash/' + userOpHash)
 }
 
 main()

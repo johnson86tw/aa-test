@@ -1,22 +1,17 @@
 import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
-import { http, createPublicClient, zeroAddress, type Address } from 'viem'
+import { http, createPublicClient, zeroAddress, encodeFunctionData, erc20Abi } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { ENTRYPOINT_ADDRESS_V07, bundlerActions } from 'permissionless'
 import 'dotenv/config'
-import { getCreateScheduledTransferAction, type ERC20Token } from '@rhinestone/module-sdk'
-
-// account: https://sepolia.etherscan.io/address/0x469874C9e35c19fbF2eaC9fbA3a1cc397023FF68
 
 const MTK_ADDRESS = '0x2bb2F59B2F316e1Fd68616b83920A1fe15E32a81'
 const recipient = '0xd78B5013757Ea4A7841811eF770711e6248dC282' // dev
-const startDate = Math.floor(Date.now() / 1000) // UNIX timestamp
+const startDate = Math.floor(Date.now() / 1000) + 60 // UNIX timestamp
 const executeInterval = 60 // 1 minute
 const numberOfExecutions = 2
-
-// ===============================================================================
 
 const PROJECT_ID = process.env.ZERODEV_PROJECT_ID as string
 const PRIVATE_KEY = process.env.PRIVATE_KEY as string
@@ -33,12 +28,15 @@ const entryPoint = ENTRYPOINT_ADDRESS_V07
 const kernelVersion = KERNEL_V3_1
 
 const main = async () => {
+	// Construct a signer
 	const signer = privateKeyToAccount(`0x${PRIVATE_KEY}`)
 
+	// Construct a public client
 	const publicClient = createPublicClient({
 		transport: http(BUNDLER_RPC),
 	})
 
+	// Construct a validator
 	const ecdsaValidator = await signerToEcdsaValidator(publicClient, {
 		signer,
 		entryPoint,
@@ -78,25 +76,17 @@ const main = async () => {
 	const accountAddress = kernelClient.account.address
 	console.log('My account:', accountAddress)
 
-	// ================================== Send a UserOp ================================
-
-	const scheduledTransferAction = getCreateScheduledTransferAction({
-		scheduledTransfer: {
-			token: {
-				token_address: MTK_ADDRESS,
-				decimals: 18,
-			},
-			amount: 1,
-			recipient,
-			startDate: new Date().getTime(),
-			repeatEvery: 10,
-			numberOfRepeats: 2,
-		},
-	})
-
 	const userOpHash = await kernelClient.sendUserOperation({
 		userOperation: {
-			callData: scheduledTransferAction.callData,
+			callData: await kernelClient.account.encodeCallData({
+				to: MTK_ADDRESS,
+				value: BigInt(0),
+				data: encodeFunctionData({
+					abi: erc20Abi,
+					functionName: 'transfer',
+					args: [recipient, BigInt(1 * 1e18)],
+				}),
+			}),
 		},
 	})
 
