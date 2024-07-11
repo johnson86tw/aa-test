@@ -12,7 +12,7 @@ import { getCreateScheduledTransferAction, type ERC20Token } from '@rhinestone/m
 
 const MTK_ADDRESS = '0x2bb2F59B2F316e1Fd68616b83920A1fe15E32a81'
 const recipient = '0xd78B5013757Ea4A7841811eF770711e6248dC282' // dev
-const startDate = Math.floor(Date.now() / 1000) // UNIX timestamp
+const startDate = Math.floor(Date.now() / 1000) + 60 // UNIX timestamp
 const executeInterval = 60 // 1 minute
 const numberOfExecutions = 2
 
@@ -45,7 +45,6 @@ const main = async () => {
 		kernelVersion,
 	})
 
-	// Construct a Kernel account
 	const account = await createKernelAccount(publicClient, {
 		plugins: {
 			sudo: ecdsaValidator,
@@ -54,7 +53,6 @@ const main = async () => {
 		kernelVersion,
 	})
 
-	// Construct a Kernel account client
 	const kernelClient = createKernelAccountClient({
 		account,
 		chain,
@@ -75,8 +73,7 @@ const main = async () => {
 		},
 	})
 
-	const accountAddress = kernelClient.account.address
-	console.log('My account:', accountAddress)
+	console.log('My account:', account.address)
 
 	// ================================== Send a UserOp ================================
 
@@ -88,15 +85,20 @@ const main = async () => {
 			},
 			amount: 1,
 			recipient,
-			startDate: new Date().getTime(),
-			repeatEvery: 10,
-			numberOfRepeats: 2,
+			startDate,
+			repeatEvery: executeInterval,
+			numberOfRepeats: numberOfExecutions,
 		},
 	})
+
+	console.log('calldata', scheduledTransferAction.callData)
 
 	const userOpHash = await kernelClient.sendUserOperation({
 		userOperation: {
 			callData: scheduledTransferAction.callData,
+			// preVerificationGas: BigInt('0x186A0'),
+			// callGasLimit: BigInt('0xD6D8'),
+			// verificationGasLimit: BigInt('0xF4240'),
 		},
 	})
 
