@@ -1,12 +1,12 @@
 import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
 import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
-import { http, createPublicClient, zeroAddress, type Address } from 'viem'
+import { http, createPublicClient } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { ENTRYPOINT_ADDRESS_V07, bundlerActions } from 'permissionless'
 import 'dotenv/config'
-import { getCreateScheduledTransferAction, type ERC20Token } from '@rhinestone/module-sdk'
+import { getCreateScheduledTransferAction } from '@rhinestone/module-sdk'
 
 // account: https://sepolia.etherscan.io/address/0x469874C9e35c19fbF2eaC9fbA3a1cc397023FF68
 
