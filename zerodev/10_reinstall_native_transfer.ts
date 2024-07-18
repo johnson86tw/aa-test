@@ -1,18 +1,18 @@
+import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
 import { createKernelAccount, createKernelAccountClient, createZeroDevPaymasterClient } from '@zerodev/sdk'
 import { KERNEL_V3_1 } from '@zerodev/sdk/constants'
-import { signerToEcdsaValidator } from '@zerodev/ecdsa-validator'
-import { http, createPublicClient } from 'viem'
+import { http, createPublicClient, type Address, zeroAddress, encodeAbiParameters, encodePacked } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
 import { ENTRYPOINT_ADDRESS_V07, bundlerActions } from 'permissionless'
 import 'dotenv/config'
-import { getCreateScheduledTransferAction } from '@rhinestone/module-sdk'
+import { getScheduledTransferData, getScheduledTransfersExecutor } from '@rhinestone/module-sdk'
+import { erc7579Actions } from 'permissionless/actions/erc7579'
 
 // account: https://sepolia.etherscan.io/address/0x469874C9e35c19fbF2eaC9fbA3a1cc397023FF68
 
-const MTK_ADDRESS = '0x2bb2F59B2F316e1Fd68616b83920A1fe15E32a81'
 const recipient = '0xd78B5013757Ea4A7841811eF770711e6248dC282' // dev
-const startDate = Math.floor(Date.now() / 1000) + 60 // UNIX timestamp
+const startDate = Math.floor(Date.now() / 1000) // UNIX timestamp
 const executeInterval = 60 // 1 minute
 const numberOfExecutions = 2
 
@@ -34,7 +34,6 @@ const kernelVersion = KERNEL_V3_1
 
 const main = async () => {
 	const signer = privateKeyToAccount(`0x${PRIVATE_KEY}`)
-
 	const publicClient = createPublicClient({
 		transport: http(BUNDLER_RPC),
 	})
@@ -45,6 +44,7 @@ const main = async () => {
 		kernelVersion,
 	})
 
+	// Construct a Kernel account
 	const account = await createKernelAccount(publicClient, {
 		plugins: {
 			sudo: ecdsaValidator,
@@ -52,6 +52,8 @@ const main = async () => {
 		entryPoint,
 		kernelVersion,
 	})
+
+	console.log('account', account.address)
 
 	const kernelClient = createKernelAccountClient({
 		account,
@@ -71,52 +73,48 @@ const main = async () => {
 				})
 			},
 		},
+	}).extend(erc7579Actions({ entryPoint }))
+
+	const scheduledTransfer = {
+		startDate,
+		repeatEvery: executeInterval,
+		numberOfRepeats: numberOfExecutions,
+		amount: 1,
+		recipient: recipient as Address,
+	}
+
+	const executionData = getScheduledTransferData({
+		scheduledTransfer,
 	})
 
-	console.log('My account:', account.address)
-
-	// ================================== Send a UserOp ================================
-
-	const scheduledTransferAction = getCreateScheduledTransferAction({
-		scheduledTransfer: {
-			token: {
-				token_address: MTK_ADDRESS,
-				decimals: 18,
-			},
-			amount: 1,
-			recipient,
-			startDate,
-			repeatEvery: executeInterval,
-			numberOfRepeats: numberOfExecutions,
-		},
+	const module = getScheduledTransfersExecutor({
+		executeInterval,
+		numberOfExecutions,
+		startDate,
+		executionData,
 	})
 
-	console.log('calldata', scheduledTransferAction.callData)
+	console.log('module', module)
 
-	const userOpHash = await kernelClient.sendUserOperation({
-		userOperation: {
-			callData: await kernelClient.account.encodeCallData({
-				to: scheduledTransferAction.target,
-				value: scheduledTransferAction.value as bigint,
-				data: scheduledTransferAction.callData,
-			}),
-
-			// preVerificationGas: BigInt('0x186A0'),
-			// callGasLimit: BigInt('0xD6D8'),
-			// verificationGasLimit: BigInt('0xF4240'),
-		},
+	const opHash = await kernelClient.installModule({
+		type: module.type,
+		address: module.module,
+		context: encodePacked(
+			['address', 'bytes'],
+			[zeroAddress, encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes' }], [module.initData || '0x', '0x'])],
+		),
 	})
 
-	console.log('UserOp hash:', userOpHash)
+	console.log('UserOp hash:', opHash)
 	console.log('Waiting for UserOp to complete...')
 
 	const bundlerClient = kernelClient.extend(bundlerActions(entryPoint))
 	await bundlerClient.waitForUserOperationReceipt({
-		hash: userOpHash,
+		hash: opHash,
 		timeout: 0,
 	})
 
-	console.log('View completed UserOp here: https://jiffyscan.xyz/userOpHash/' + userOpHash)
+	console.log('View completed UserOp here: https://jiffyscan.xyz/userOpHash/' + opHash)
 }
 
 main()

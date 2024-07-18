@@ -78,7 +78,11 @@ const main = async () => {
 
 	const userOpHash = await kernelClient.sendUserOperation({
 		userOperation: {
-			callData: action.callData,
+			callData: await kernelClient.account.encodeCallData({
+				to: action.target,
+				value: action.value as bigint,
+				data: action.callData,
+			}),
 		},
 	})
 
