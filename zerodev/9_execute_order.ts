@@ -8,12 +8,6 @@ import { ENTRYPOINT_ADDRESS_V07, bundlerActions } from 'permissionless'
 import 'dotenv/config'
 import { getExecuteScheduledTransferAction } from '@rhinestone/module-sdk'
 
-const MTK_ADDRESS = '0x2bb2F59B2F316e1Fd68616b83920A1fe15E32a81'
-const recipient = '0xd78B5013757Ea4A7841811eF770711e6248dC282' // dev
-const startDate = Math.floor(Date.now() / 1000) + 60 // UNIX timestamp
-const executeInterval = 60 // 1 minute
-const numberOfExecutions = 2
-
 const PROJECT_ID = process.env.ZERODEV_PROJECT_ID as string
 const PRIVATE_KEY = process.env.PRIVATE_KEY as string
 

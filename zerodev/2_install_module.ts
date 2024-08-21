@@ -76,22 +76,18 @@ const main = async () => {
 		},
 	}).extend(erc7579Actions({ entryPoint }))
 
-	const hook = '0x...'
-
-	const scheduledTransfer = {
-		startDate,
-		repeatEvery: executeInterval,
-		numberOfRepeats: numberOfExecutions,
-		token: {
-			token_address: MTK_ADDRESS as Address, // USDC
-			decimals: 18,
-		},
-		amount: 1,
-		recipient: recipient as Address,
-	}
-
 	const executionData = getScheduledTransferData({
-		scheduledTransfer,
+		scheduledTransfer: {
+			startDate,
+			repeatEvery: executeInterval,
+			numberOfRepeats: numberOfExecutions,
+			token: {
+				token_address: MTK_ADDRESS as Address, // USDC
+				decimals: 18,
+			},
+			amount: 1,
+			recipient: recipient as Address,
+		},
 	})
 
 	const module = getScheduledTransfersExecutor({
@@ -99,7 +95,6 @@ const main = async () => {
 		numberOfExecutions,
 		startDate,
 		executionData,
-		hook,
 	})
 
 	console.log('module', module)
