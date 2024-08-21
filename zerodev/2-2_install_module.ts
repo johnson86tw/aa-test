@@ -81,10 +81,6 @@ const main = async () => {
 			startDate,
 			repeatEvery: executeInterval,
 			numberOfRepeats: numberOfExecutions,
-			token: {
-				token_address: MTK_ADDRESS as Address, // USDC
-				decimals: 18,
-			},
 			amount: 1,
 			recipient: recipient as Address,
 		},
