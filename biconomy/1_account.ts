@@ -29,4 +29,4 @@ const account = await createSmartAccountClient({
 
 const address = await account.getAccountAddress()
 
-console.log('AA adddress', address)
+console.log('AA address', address)
