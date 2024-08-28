@@ -2,13 +2,13 @@ import {
 	createSession,
 	createSessionKeyEOA,
 	createSmartAccountClient,
+	getChain,
 	PaymasterMode,
 	type Policy,
 	type Rule,
 } from '@biconomy/account'
 import { createWalletClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { sepolia } from 'viem/chains'
 
 const BICONOMY_PAYMASTER_API_KEY = process.env.BICONOMY_PAYMASTER_API_KEY as string
 const PRIVATE_KEY = process.env.PRIVATE_KEY as string
@@ -17,15 +17,18 @@ if (!BICONOMY_PAYMASTER_API_KEY || !PRIVATE_KEY) {
 	throw new Error('Please set your project id and private key in a .env file')
 }
 
-const BUNDLER_RPC = 'https://bundler.biconomy.io/api/v2/11155111/nJPK7B3ru.dd7f7861-190d-41bd-af80-6877f74b8f44'
+const chainId = 11155111
+const chain = getChain(chainId)
+
+const BUNDLER_RPC = `https://bundler.biconomy.io/api/v2/${chainId}/nJPK7B3ru.dd7f7861-190d-41bd-af80-6877f74b8f44`
 
 const signer = privateKeyToAccount(`0x${PRIVATE_KEY}`)
 console.log('signer', signer.address)
 
 const client = createWalletClient({
 	account: signer,
-	chain: sepolia,
-	transport: http(BUNDLER_RPC),
+	chain,
+	transport: http(),
 })
 
 const account = await createSmartAccountClient({
@@ -38,7 +41,7 @@ const address = await account.getAccountAddress()
 
 console.log('AA address', address)
 
-const { sessionKeyAddress, sessionStorageClient } = await createSessionKeyEOA(account, sepolia)
+const { sessionKeyAddress, sessionStorageClient } = await createSessionKeyEOA(account, chain)
 
 console.log('sessionKeyAddress', sessionKeyAddress)
 
