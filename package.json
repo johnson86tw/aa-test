@@ -16,7 +16,7 @@
     "@zerodev/sdk": "^5.3.3",
     "@zerodev/session-key": "^5.4.2",
     "dotenv": "^16.4.5",
-    "permissionless": "^0.1.36",
+    "permissionless": "^0.2.0",
     "viem": "^2.20.0"
   }
 }
